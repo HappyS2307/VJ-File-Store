@@ -28,7 +28,9 @@ from TechVJ.server import web_server
 
 
 import asyncio
+import time
 from pyrogram import idle
+from pyrogram.errors import FloodWait
 from plugins.clone import restart_bots
 from TechVJ.bot import StreamBot
 from TechVJ.utils.keepalive import ping_server
@@ -38,7 +40,22 @@ from TechVJ.bot.clients import initialize_clients
 
 ppath = "plugins/*.py"
 files = glob.glob(ppath)
-StreamBot.start()
+
+# FloodWait-safe Telegram authorization.
+# Telegram may temporarily rate-limit bot authorization after repeated restarts.
+# Keep the Railway process alive and wait for the exact server-provided delay
+# instead of crashing and entering a restart loop.
+while True:
+    try:
+        StreamBot.start()
+        break
+    except FloodWait as e:
+        wait_seconds = int(getattr(e, "value", 0) or 0)
+        if wait_seconds <= 0:
+            wait_seconds = 60
+        print(f"Telegram FloodWait during startup. Waiting {wait_seconds} seconds before retrying...")
+        time.sleep(wait_seconds)
+
 loop = asyncio.get_event_loop()
 
 
