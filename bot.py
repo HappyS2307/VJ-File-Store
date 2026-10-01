@@ -16,6 +16,7 @@ logging.getLogger("pyrogram").setLevel(logging.ERROR)
 
 
 from pyrogram import Client, __version__
+from pyrogram.types import BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeChat
 from pyrogram.raw.all import layer
 from config import LOG_CHANNEL, ON_HEROKU, CLONE_MODE, PORT
 from typing import Union, Optional, AsyncGenerator
@@ -60,12 +61,63 @@ loop = asyncio.get_event_loop()
 
 
 
+async def setup_command_menu():
+    """Register Telegram command menus for users and admins."""
+    public_commands = [
+        BotCommand("start", "Start bot / receive files"),
+        BotCommand("link", "Generate a shareable file link"),
+        BotCommand("batch", "Generate a batch link"),
+        BotCommand("base_site", "Set your shortener domain"),
+        BotCommand("api", "Set your shortener API key"),
+    ]
+
+    admin_commands = public_commands + [
+        BotCommand("settings", "Open bot settings"),
+        BotCommand("setstart", "Set start message"),
+        BotCommand("setpic", "Set start image"),
+        BotCommand("setabout", "Set About text"),
+        BotCommand("sethelp", "Set Help text"),
+        BotCommand("setyoutube", "Set YouTube button"),
+        BotCommand("setsupport", "Set Support button"),
+        BotCommand("setupdates", "Set Updates button"),
+        BotCommand("setdeveloper", "Set Developer button"),
+        BotCommand("resetsettings", "Reset bot settings"),
+        BotCommand("broadcast", "Broadcast a message"),
+    ]
+
+    if CLONE_MODE:
+        public_commands.extend([
+            BotCommand("clone", "Create a clone bot"),
+            BotCommand("deletecloned", "Delete your clone bot"),
+        ])
+        admin_commands.extend([
+            BotCommand("clone", "Create a clone bot"),
+            BotCommand("deletecloned", "Delete your clone bot"),
+        ])
+
+    await StreamBot.set_bot_commands(
+        public_commands,
+        scope=BotCommandScopeAllPrivateChats()
+    )
+
+    for admin_id in ADMINS:
+        try:
+            admin_id = int(admin_id)
+            await StreamBot.set_bot_commands(
+                admin_commands,
+                scope=BotCommandScopeChat(chat_id=admin_id)
+            )
+        except Exception as e:
+            print(f"Could not set admin command menu for {admin_id}: {e}")
+
+
 async def start():
     print('\n')
     print('Initializing File Store Bot')
     bot_info = await StreamBot.get_me()
     StreamBot.username = bot_info.username
     await initialize_clients()
+    await setup_command_menu()
     for name in files:
         with open(name) as a:
             patt = Path(a.name)
