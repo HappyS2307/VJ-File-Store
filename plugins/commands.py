@@ -8,7 +8,7 @@ from Script import script
 from plugins.dbusers import db
 from pyrogram import Client, filters, enums
 from plugins.users_api import get_user, update_user_info
-from pyrogram.errors import ChatAdminRequired, FloodWait, RPCError
+from pyrogram.errors import ChatAdminRequired, FloodWait
 from pyrogram.types import *
 from utils import verify_user, check_token, check_verification, get_token
 from config import *
@@ -306,14 +306,11 @@ async def start(client, message):
         return
     try:
         msg = await client.get_messages(LOG_CHANNEL, int(decode_file_id))
-        if not msg or not msg.media:
-            return await message.reply_text("❌ File not found in storage. The generated link may be invalid or the storage message is unavailable.")
-        media = getattr(msg, msg.media.value, None)
-        if not media:
-            return await message.reply_text("❌ Stored media could not be read. Please generate a new link.")
-        title = formate_file_name(getattr(media, "file_name", None) or "file")
-        size=get_size(getattr(media, "file_size", 0) or 0)
-        f_caption = f"<code>{title}</code>"
+        if msg.media:
+            media = getattr(msg, msg.media.value)
+            title = formate_file_name(media.file_name)
+            size=get_size(media.file_size)
+            f_caption = f"<code>{title}</code>"
             if CUSTOM_FILE_CAPTION:
                 try:
                     f_caption=CUSTOM_FILE_CAPTION.format(file_name= '' if title is None else title, file_size='' if size is None else size, file_caption='')
@@ -334,17 +331,9 @@ async def start(client, message):
                     reply_markup=InlineKeyboardMarkup(button)
             else:
                 reply_markup = None
-            try:
-            del_msg = await msg.copy(chat_id=message.from_user.id, caption=f_caption, reply_markup=reply_markup, protect_content=False)
-        except FloodWait as e:
-            await asyncio.sleep(e.value)
             del_msg = await msg.copy(chat_id=message.from_user.id, caption=f_caption, reply_markup=reply_markup, protect_content=False)
         else:
-            try:
-                del_msg = await msg.copy(chat_id=message.from_user.id, protect_content=False)
-            except FloodWait as e:
-                await asyncio.sleep(e.value)
-                del_msg = await msg.copy(chat_id=message.from_user.id, protect_content=False)
+            del_msg = await msg.copy(chat_id=message.from_user.id, protect_content=False)
         if AUTO_DELETE_MODE == True:
             k = await client.send_message(chat_id = message.from_user.id, text=f"<b><u>❗️❗️❗️IMPORTANT❗️️❗️❗️</u></b>\n\nThis Movie File/Video will be deleted in <b><u>{AUTO_DELETE} minutes</u> 🫥 <i></b>(Due to Copyright Issues)</i>.\n\n<b><i>Please forward this File/Video to your Saved Messages and Start Download there</b>")
             await asyncio.sleep(AUTO_DELETE_TIME)
