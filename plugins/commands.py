@@ -399,23 +399,35 @@ async def cb_handler(client: Client, query: CallbackQuery):
         )
         reply_markup = InlineKeyboardMarkup(buttons)
         me2 = (await client.get_me()).mention
+        about_text = await get_setting("about_text")
         await query.message.edit_text(
-            text=script.ABOUT_TXT.format(me2),
+            text=about_text.format(me2),
             reply_markup=reply_markup,
             parse_mode=enums.ParseMode.HTML
         )
 
     
     elif query.data == "start":
-        buttons = [[
-            InlineKeyboardButton('💝 sᴜʙsᴄʀɪʙᴇ ᴍʏ ʏᴏᴜᴛᴜʙᴇ ᴄʜᴀɴɴᴇʟ', url='https://youtube.com/')
-        ],[
-            InlineKeyboardButton('🔍 sᴜᴘᴘᴏʀᴛ ɢʀᴏᴜᴘ', url='https://t.me/your_support'),
-            InlineKeyboardButton('🤖 ᴜᴘᴅᴀᴛᴇ ᴄʜᴀɴɴᴇʟ', url='https://t.me/your_channel')
-        ],[
-            InlineKeyboardButton('💁‍♀️ ʜᴇʟᴘ', callback_data='help'),
-            InlineKeyboardButton('😊 ᴀʙᴏᴜᴛ', callback_data='about')
-        ]]
+        youtube_url = await get_setting("youtube_url")
+        youtube_text = await get_setting("youtube_text")
+        support_url = await get_setting("support_url")
+        support_text = await get_setting("support_text")
+        updates_url = await get_setting("updates_url")
+        updates_text = await get_setting("updates_text")
+        buttons = []
+        if youtube_url:
+            buttons.append([InlineKeyboardButton(youtube_text, url=youtube_url)])
+        row = []
+        if support_url:
+            row.append(InlineKeyboardButton(support_text, url=support_url))
+        if updates_url:
+            row.append(InlineKeyboardButton(updates_text, url=updates_url))
+        if row:
+            buttons.append(row)
+        buttons.append([
+            InlineKeyboardButton('💁‍♀️ HELP', callback_data='help'),
+            InlineKeyboardButton('😊 ABOUT', callback_data='about')
+        ])
         if CLONE_MODE == True:
             buttons.append([InlineKeyboardButton('🤖 ᴄʀᴇᴀᴛᴇ ʏᴏᴜʀ ᴏᴡɴ ᴄʟᴏɴᴇ ʙᴏᴛ', callback_data='clone')])
         reply_markup = InlineKeyboardMarkup(buttons)
@@ -425,8 +437,9 @@ async def cb_handler(client: Client, query: CallbackQuery):
             InputMediaPhoto(random.choice(PICS))
         )
         me2 = (await client.get_me()).mention
+        start_text = await get_setting("start_text")
         await query.message.edit_text(
-            text=script.START_TXT.format(query.from_user.mention, me2),
+            text=start_text.format(query.from_user.mention, me2),
             reply_markup=reply_markup,
             parse_mode=enums.ParseMode.HTML
         )
@@ -461,8 +474,9 @@ async def cb_handler(client: Client, query: CallbackQuery):
             InputMediaPhoto(random.choice(PICS))
         )
         reply_markup = InlineKeyboardMarkup(buttons)
+        help_text = await get_setting("help_text")
         await query.message.edit_text(
-            text=script.HELP_TXT,
+            text=help_text,
             reply_markup=reply_markup,
             parse_mode=enums.ParseMode.HTML
         )  
