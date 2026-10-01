@@ -433,18 +433,28 @@ async def cb_handler(client: Client, query: CallbackQuery):
         if CLONE_MODE == True:
             buttons.append([InlineKeyboardButton('🤖 ᴄʀᴇᴀᴛᴇ ʏᴏᴜʀ ᴏᴡɴ ᴄʟᴏɴᴇ ʙᴏᴛ', callback_data='clone')])
         reply_markup = InlineKeyboardMarkup(buttons)
-        await client.edit_message_media(
-            query.message.chat.id, 
-            query.message.id, 
-            InputMediaPhoto(random.choice(PICS))
-        )
+        start_photo = await get_setting("start_photo")
         me2 = (await client.get_me()).mention
         start_text = await get_setting("start_text")
-        await query.message.edit_text(
-            text=start_text.format(query.from_user.mention, me2),
-            reply_markup=reply_markup,
-            parse_mode=enums.ParseMode.HTML
-        )
+        if start_photo:
+            await client.edit_message_media(
+                query.message.chat.id,
+                query.message.id,
+                InputMediaPhoto(start_photo)
+            )
+            await query.message.edit_text(
+                text=start_text.format(query.from_user.mention, me2),
+                reply_markup=reply_markup,
+                parse_mode=enums.ParseMode.HTML
+            )
+        else:
+            await query.message.delete()
+            await client.send_message(
+                query.message.chat.id,
+                text=start_text.format(query.from_user.mention, me2),
+                reply_markup=reply_markup,
+                parse_mode=enums.ParseMode.HTML
+            )
 
     
     elif query.data == "clone":
