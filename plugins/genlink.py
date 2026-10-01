@@ -140,11 +140,11 @@ async def gen_link_batch(bot, message):
     # file store without db channel
     og_msg = 0
     tot = 0
-    async for msg in bot.iter_messages(f_chat_id, l_msg_id, f_msg_id):
+    # Read the requested inclusive message range in chronological order.\n    limit = max(1, l_msg_id - f_msg_id + 1)\n    async for msg in bot.iter_messages(f_chat_id, limit=limit, offset_id=f_msg_id - 1, reverse=True):
         tot += 1
         if og_msg % 20 == 0:
             try:
-                await sts.edit(FRMT.format(total=l_msg_id-f_msg_id, current=tot, rem=((l_msg_id-f_msg_id) - tot), sts="Saving Messages"))
+                await sts.edit(FRMT.format(total=limit, current=tot, rem=max(0, limit - tot), sts="Saving Messages"))
             except:
                 pass
         if msg.empty or msg.service:
