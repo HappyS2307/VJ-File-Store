@@ -38,7 +38,13 @@ DEFAULTS = {
 }
 
 async def get_setting(key):
-    return await settings.get(key, DEFAULTS.get(key))
+    value = await settings.get(key, DEFAULTS.get(key))
+    # Ignore legacy template branding accidentally saved in MongoDB.
+    if key in {"start_text", "about_text", "help_text"} and value:
+        legacy = ("Tech VJ", "TECH VJ", "Tech_VJ", "VJ_Bots", "KingVJ01", "𝐕𝐉", "VJ Support", "VJ Update")
+        if any(x.lower() in str(value).lower() for x in legacy):
+            return DEFAULTS.get(key)
+    return value
 
 async def set_setting(key, value):
     await settings.set(key, value)
