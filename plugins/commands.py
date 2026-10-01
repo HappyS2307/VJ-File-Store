@@ -392,11 +392,13 @@ async def cb_handler(client: Client, query: CallbackQuery):
             InlineKeyboardButton('Hᴏᴍᴇ', callback_data='start'),
             InlineKeyboardButton('🔒 Cʟᴏsᴇ', callback_data='close_data')
         ]]
-        await client.edit_message_media(
-            query.message.chat.id, 
-            query.message.id, 
-            InputMediaPhoto(random.choice(PICS))
-        )
+        start_photo = await get_setting("start_photo")
+        if start_photo:
+            await client.edit_message_media(
+                query.message.chat.id,
+                query.message.id,
+                InputMediaPhoto(start_photo)
+            )
         reply_markup = InlineKeyboardMarkup(buttons)
         me2 = (await client.get_me()).mention
         about_text = await get_setting("about_text")
@@ -468,11 +470,13 @@ async def cb_handler(client: Client, query: CallbackQuery):
             InlineKeyboardButton('Hᴏᴍᴇ', callback_data='start'),
             InlineKeyboardButton('🔒 Cʟᴏsᴇ', callback_data='close_data')
         ]]
-        await client.edit_message_media(
-            query.message.chat.id, 
-            query.message.id, 
-            InputMediaPhoto(random.choice(PICS))
-        )
+        start_photo = await get_setting("start_photo")
+        if start_photo:
+            await client.edit_message_media(
+                query.message.chat.id,
+                query.message.id,
+                InputMediaPhoto(start_photo)
+            )
         reply_markup = InlineKeyboardMarkup(buttons)
         help_text = await get_setting("help_text")
         await query.message.edit_text(
