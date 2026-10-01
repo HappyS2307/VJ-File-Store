@@ -12,6 +12,7 @@ from pyrogram.errors import ChatAdminRequired, FloodWait
 from pyrogram.types import *
 from utils import verify_user, check_token, check_verification, get_token
 from config import *
+from plugins.settings_db import get_setting, set_setting, reset_settings
 import re
 import json
 import base64
@@ -44,6 +45,84 @@ def formate_file_name(file_name):
 
 
 
+
+ADMIN_ONLY = filters.user(ADMINS) & filters.private
+
+@Client.on_message(filters.command("settings") & ADMIN_ONLY)
+async def settings_command(client, message):
+    await message.reply_text(
+        "<b>⚙️ BOT SETTINGS</b>\n\n"
+        "/setstart — change start message (reply to text)\n"
+        "/setpic — change start image (reply to photo)\n"
+        "/setabout — change About text (reply to text)\n"
+        "/sethelp — change Help text (reply to text)\n"
+        "/setyoutube — set YouTube button: <code>/setyoutube text | url</code>\n"
+        "/setsupport — set Support button: <code>/setsupport text | url</code>\n"
+        "/setupdates — set Updates button: <code>/setupdates text | url</code>\n"
+        "/setdeveloper — set Developer text/link: <code>/setdeveloper text | url</code>\n"
+        "/resetsettings — restore clean defaults"
+    )
+
+async def _reply_text_value(message, key, label):
+    if not message.reply_to_message or not message.reply_to_message.text:
+        return await message.reply_text(f"Reply to a text message with <code>/{label}</code>.")
+    await set_setting(key, message.reply_to_message.text)
+    await message.reply_text(f"✅ {label} updated.")
+
+async def _set_button(message, key_text, key_url, command_name):
+    if len(message.command) < 2:
+        return await message.reply_text(f"Use: <code>/{command_name} Button Text | https://example.com</code>")
+    raw = message.text.split(None, 1)[1].strip()
+    if " | " not in raw:
+        return await message.reply_text(f"Use: <code>/{command_name} Button Text | https://example.com</code>")
+    label, url = [x.strip() for x in raw.split(" | ", 1)]
+    if not url.startswith(("http://", "https://", "tg://")):
+        return await message.reply_text("❌ URL must start with http://, https:// or tg://")
+    await set_setting(key_text, label)
+    await set_setting(key_url, url)
+    await message.reply_text("✅ Button updated.")
+
+@Client.on_message(filters.command("setstart") & ADMIN_ONLY)
+async def setstart(client, message):
+    await _reply_text_value(message, "start_text", "setstart")
+
+@Client.on_message(filters.command("setabout") & ADMIN_ONLY)
+async def setabout(client, message):
+    await _reply_text_value(message, "about_text", "setabout")
+
+@Client.on_message(filters.command("sethelp") & ADMIN_ONLY)
+async def sethelp(client, message):
+    await _reply_text_value(message, "help_text", "sethelp")
+
+@Client.on_message(filters.command("setpic") & ADMIN_ONLY)
+async def setpic(client, message):
+    r = message.reply_to_message
+    if not r or not r.photo:
+        return await message.reply_text("Reply to a photo with /setpic.")
+    await set_setting("start_photo", str(r.photo.file_id))
+    await message.reply_text("✅ Start image updated.")
+
+@Client.on_message(filters.command("setyoutube") & ADMIN_ONLY)
+async def setyoutube(client, message):
+    await _set_button(message, "youtube_text", "youtube_url", "setyoutube")
+
+@Client.on_message(filters.command("setsupport") & ADMIN_ONLY)
+async def setsupport(client, message):
+    await _set_button(message, "support_text", "support_url", "setsupport")
+
+@Client.on_message(filters.command("setupdates") & ADMIN_ONLY)
+async def setupdates(client, message):
+    await _set_button(message, "updates_text", "updates_url", "setupdates")
+
+@Client.on_message(filters.command("setdeveloper") & ADMIN_ONLY)
+async def setdeveloper(client, message):
+    await _set_button(message, "developer_text", "developer_url", "setdeveloper")
+
+@Client.on_message(filters.command("resetsettings") & ADMIN_ONLY)
+async def resetsettings(client, message):
+    await reset_settings()
+    await message.reply_text("✅ Bot settings reset.")
+
 @Client.on_message(filters.command("start") & filters.incoming)
 async def start(client, message):
     username = client.me.username
@@ -51,24 +130,38 @@ async def start(client, message):
         await db.add_user(message.from_user.id, message.from_user.first_name)
         await client.send_message(LOG_CHANNEL, script.LOG_TEXT.format(message.from_user.id, message.from_user.mention))
     if len(message.command) != 2:
-        buttons = [[
-            InlineKeyboardButton('💝 sᴜʙsᴄʀɪʙᴇ ᴍʏ ʏᴏᴜᴛᴜʙᴇ ᴄʜᴀɴɴᴇʟ', url='https://t.me/your_channel')
-            ],[
-            InlineKeyboardButton('🔍 sᴜᴘᴘᴏʀᴛ ɢʀᴏᴜᴘ', url='https://t.me/your_support'),
-            InlineKeyboardButton('🤖 ᴜᴘᴅᴀᴛᴇ ᴄʜᴀɴɴᴇʟ', url='https://t.me/your_channel')
-            ],[
-            InlineKeyboardButton('💁‍♀️ ʜᴇʟᴘ', callback_data='help'),
-            InlineKeyboardButton('😊 ᴀʙᴏᴜᴛ', callback_data='about')
-        ]]
+        youtube_url = await get_setting("youtube_url")
+        youtube_text = await get_setting("youtube_text")
+        support_url = await get_setting("support_url")
+        support_text = await get_setting("support_text")
+        updates_url = await get_setting("updates_url")
+        updates_text = await get_setting("updates_text")
+        start_text = await get_setting("start_text")
+        start_photo = await get_setting("start_photo")
+
+        buttons = []
+        if youtube_url:
+            buttons.append([InlineKeyboardButton(youtube_text, url=youtube_url)])
+        row = []
+        if support_url:
+            row.append(InlineKeyboardButton(support_text, url=support_url))
+        if updates_url:
+            row.append(InlineKeyboardButton(updates_text, url=updates_url))
+        if row:
+            buttons.append(row)
+        buttons.append([
+            InlineKeyboardButton('💁‍♀️ HELP', callback_data='help'),
+            InlineKeyboardButton('😊 ABOUT', callback_data='about')
+        ])
         if CLONE_MODE == True:
-            buttons.append([InlineKeyboardButton('🤖 ᴄʀᴇᴀᴛᴇ ʏᴏᴜʀ ᴏᴡɴ ᴄʟᴏɴᴇ ʙᴏᴛ', callback_data='clone')])
+            buttons.append([InlineKeyboardButton('🤖 CREATE CLONE BOT', callback_data='clone')])
         reply_markup = InlineKeyboardMarkup(buttons)
         me = client.me
-        await message.reply_photo(
-            photo=random.choice(PICS),
-            caption=script.START_TXT.format(message.from_user.mention, me.mention),
-            reply_markup=reply_markup
-        )
+        caption = start_text.format(message.from_user.mention, me.mention)
+        if start_photo:
+            await message.reply_photo(photo=start_photo, caption=caption, reply_markup=reply_markup)
+        else:
+            await message.reply_text(caption, reply_markup=reply_markup)
         return
 
     
