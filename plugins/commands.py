@@ -291,61 +291,106 @@ async def start(client, message):
         return
 
 
-    pre, decode_file_id = ((base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))).decode("ascii")).split("_", 1)
-    if not await check_verification(client, message.from_user.id) and VERIFY_MODE == True:
-        btn = [[
-            InlineKeyboardButton("Verify", url=await get_token(client, message.from_user.id, f"https://telegram.me/{username}?start="))
-        ],[
-            InlineKeyboardButton("How To Open Link & Verify", url=VERIFY_TUTORIAL)
-        ]]
-        await message.reply_text(
-            text="<b>You are not verified !\nKindly verify to continue !</b>",
-            protect_content=True,
-            reply_markup=InlineKeyboardMarkup(btn)
-        )
-        return
     try:
+        decoded = base64.urlsafe_b64decode(data + "=" * (-len(data) % 4)).decode("ascii")
+        if "_" not in decoded:
+            raise ValueError("Invalid file token format")
+        pre, decode_file_id = decoded.split("_", 1)
+        if not decode_file_id.isdigit():
+            raise ValueError("Invalid storage message ID")
+
+        if not await check_verification(client, message.from_user.id) and VERIFY_MODE:
+            btn = [[
+                InlineKeyboardButton("Verify", url=await get_token(client, message.from_user.id, f"https://telegram.me/{username}?start="))
+            ]]
+            if VERIFY_TUTORIAL:
+                btn.append([InlineKeyboardButton("How To Open Link & Verify", url=VERIFY_TUTORIAL)])
+            await message.reply_text(
+                "<b>You are not verified !\nKindly verify to continue !</b>",
+                protect_content=True,
+                reply_markup=InlineKeyboardMarkup(btn)
+            )
+            return
+
         msg = await client.get_messages(LOG_CHANNEL, int(decode_file_id))
-        if msg.media:
-            media = getattr(msg, msg.media.value)
-            title = formate_file_name(media.file_name)
-            size=get_size(media.file_size)
-            f_caption = f"<code>{title}</code>"
-            if CUSTOM_FILE_CAPTION:
-                try:
-                    f_caption=CUSTOM_FILE_CAPTION.format(file_name= '' if title is None else title, file_size='' if size is None else size, file_caption='')
-                except:
-                    return
-            if STREAM_MODE == True:
-                if msg.video or msg.document:
-                    log_msg = msg
-                    fileName = {quote_plus(get_name(log_msg))}
-                    stream = f"{URL}watch/{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
-                    download = f"{URL}{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
-                    button = [[
-                        InlineKeyboardButton("• ᴅᴏᴡɴʟᴏᴀᴅ •", url=download),
-                        InlineKeyboardButton('• ᴡᴀᴛᴄʜ •', url=stream)
-                    ],[
-                        InlineKeyboardButton("• ᴡᴀᴛᴄʜ ɪɴ ᴡᴇʙ ᴀᴘᴘ •", web_app=WebAppInfo(url=stream))
-                    ]]
-                    reply_markup=InlineKeyboardMarkup(button)
-            else:
-                reply_markup = None
-            del_msg = await msg.copy(chat_id=message.from_user.id, caption=f_caption, reply_markup=reply_markup, protect_content=False)
-        else:
-            del_msg = await msg.copy(chat_id=message.from_user.id, protect_content=False)
-        if AUTO_DELETE_MODE == True:
-            k = await client.send_message(chat_id = message.from_user.id, text=f"<b><u>❗️❗️❗️IMPORTANT❗️️❗️❗️</u></b>\n\nThis Movie File/Video will be deleted in <b><u>{AUTO_DELETE} minutes</u> 🫥 <i></b>(Due to Copyright Issues)</i>.\n\n<b><i>Please forward this File/Video to your Saved Messages and Start Download there</b>")
-            await asyncio.sleep(AUTO_DELETE_TIME)
+        if not msg or not msg.media:
+            logger.error("File token %s points to missing storage message %s in %s", data, decode_file_id, LOG_CHANNEL)
+            return await message.reply_text(
+                "<b>❌ File not found.</b>\n\nThe storage message is missing or the link is invalid. Please generate a new link."
+            )
+
+        media = getattr(msg, msg.media.value, None)
+        if not media:
+            return await message.reply_text("<b>❌ Stored file could not be read.</b>\nPlease generate a new link.")
+
+        title = formate_file_name(getattr(media, "file_name", None) or "File")
+        size = get_size(getattr(media, "file_size", 0) or 0)
+        f_caption = f"<code>{title}</code>"
+
+        if CUSTOM_FILE_CAPTION:
             try:
-                await del_msg.delete()
-            except:
-                pass
-            await k.edit_text("<b>Your File/Video is successfully deleted!!!</b>")
-        return
-    except:
-        pass
-        
+                f_caption = CUSTOM_FILE_CAPTION.format(
+                    file_name=title or "File",
+                    file_size=size,
+                    file_caption=""
+                )
+            except Exception:
+                f_caption = f"<code>{title}</code>"
+
+        reply_markup = None
+        if STREAM_MODE and (msg.video or msg.document):
+            stream = f"{URL.rstrip('/')}/watch/{msg.id}/{quote_plus(get_name(msg))}?hash={get_hash(msg)}"
+            download = f"{URL.rstrip('/')}/{msg.id}/{quote_plus(get_name(msg))}?hash={get_hash(msg)}"
+            reply_markup = InlineKeyboardMarkup([[
+                InlineKeyboardButton("• ᴅᴏᴡɴʟᴏᴀᴅ •", url=download),
+                InlineKeyboardButton("• ᴡᴀᴛᴄʜ •", url=stream)
+            ], [
+                InlineKeyboardButton("• ᴡᴀᴛᴄʜ ɪɴ ᴡᴇʙ ᴀᴘᴘ •", web_app=WebAppInfo(url=stream))
+            ]])
+
+        try:
+            delivered = await msg.copy(
+                chat_id=message.from_user.id,
+                caption=f_caption,
+                reply_markup=reply_markup,
+                protect_content=False
+            )
+        except FloodWait as e:
+            logger.warning("FloodWait while delivering file %s: %ss", decode_file_id, e.value)
+            await asyncio.sleep(e.value)
+            delivered = await msg.copy(
+                chat_id=message.from_user.id,
+                caption=f_caption,
+                reply_markup=reply_markup,
+                protect_content=False
+            )
+
+        if AUTO_DELETE_MODE:
+            k = await client.send_message(
+                message.from_user.id,
+                f"<b><u>❗️IMPORTANT</u></b>\n\nThis file will be deleted in <b>{AUTO_DELETE} minutes</b>.\n\nPlease forward it to Saved Messages if you want to keep it."
+            )
+            async def delete_later():
+                await asyncio.sleep(AUTO_DELETE_TIME)
+                try:
+                    await delivered.delete()
+                except Exception:
+                    pass
+                try:
+                    await k.edit_text("<b>Your file has been deleted.</b>")
+                except Exception:
+                    pass
+            asyncio.create_task(delete_later())
+
+    except FloodWait as e:
+        logger.warning("FloodWait in file retrieval: %ss", e.value)
+        await message.reply_text(f"<b>⚠️ Telegram rate limit active.</b>\nPlease try again in {e.value} seconds.")
+    except Exception as e:
+        logger.exception("File delivery failed for token %s: %s", data, e)
+        await message.reply_text(
+            "<b>❌ File delivery failed.</b>\n\nPlease generate a fresh link and try again."
+        )
+
 
 @Client.on_message(filters.command('api') & filters.private)
 async def shortener_api_handler(client, m: Message):
