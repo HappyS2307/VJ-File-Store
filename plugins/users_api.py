@@ -4,7 +4,7 @@
 # Subscribe YouTube Channel For Amazing Bot https://youtube.com/
 # Ask Doubt on telegram 
 
-import requests
+import aiohttp
 import json
 from motor.motor_asyncio import AsyncIOMotorClient
 from plugins.clone import mongo_db
@@ -16,11 +16,20 @@ from plugins.clone import mongo_db
 async def get_short_link(user, link):
     api_key = user["shortener_api"]
     base_site = user["base_site"]
-    print(user)
-    response = requests.get(f"https://{base_site}/api?api={api_key}&url={link}")
-    data = response.json()
-    if data["status"] == "success" or rget.status_code == 200:
-        return data["shortenedUrl"]
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"https://{base_site}/api",
+                params={"api": api_key, "url": link},
+                timeout=aiohttp.ClientTimeout(total=10),
+                ssl=False,
+            ) as response:
+                data = await response.json(content_type=None)
+        if data.get("status") == "success" and data.get("shortenedUrl"):
+            return data["shortenedUrl"]
+        return link
+    except Exception:
+        return link
 
 # Don't Remove Credit Tg - 
 # Subscribe YouTube Channel For Amazing Bot https://youtube.com/
