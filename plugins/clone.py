@@ -1,6 +1,6 @@
-# Don't Remove Credit Tg - @VJ_Bots
-# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
-# Ask Doubt on telegram @KingVJ01
+# Don't Remove Credit Tg - 
+# Subscribe YouTube Channel For Amazing Bot https://youtube.com/
+# Ask Doubt on telegram 
 
 import re
 from pymongo import MongoClient
@@ -11,7 +11,7 @@ from pyrogram.errors.exceptions.bad_request_400 import AccessTokenExpired, Acces
 from config import API_ID, API_HASH, DB_URI, DB_NAME, CLONE_MODE
 
 mongo_client = MongoClient(DB_URI)
-mongo_db = mongo_client["cloned_vjbotz"]
+mongo_db = mongo_client["cloned_bots"]
 
 @Client.on_message(filters.command("clone") & filters.private)
 async def clone(client, message):
@@ -49,7 +49,7 @@ async def clone(client, message):
         mongo_db.bots.insert_one(details)
         await msg.edit_text(f"<b>sᴜᴄᴄᴇssғᴜʟʟʏ ᴄʟᴏɴᴇᴅ ʏᴏᴜʀ ʙᴏᴛ: @{bot.username}.</b>")
     except BaseException as e:
-        await msg.edit_text(f"⚠️ <b>Bot Error:</b>\n\n<code>{e}</code>\n\n**Kindly forward this message to @KingVJ01 to get assistance.**")
+        await msg.edit_text(f"⚠️ <b>Bot Error:</b>\n\n<code>{e}</code>\n\n**Kindly forward this message to  to get assistance.**")
 
 @Client.on_message(filters.command("deletecloned") & filters.private)
 async def delete_cloned_bot(client, message):
@@ -69,9 +69,9 @@ async def delete_cloned_bot(client, message):
     except:
         await message.reply_text("An error occurred while deleting the cloned bot.")
 
-# Don't Remove Credit Tg - @VJ_Bots
-# Subscribe YouTube Channel For Amazing Bot https://youtube.com/@Tech_VJ
-# Ask Doubt on telegram @KingVJ01
+# Don't Remove Credit Tg - 
+# Subscribe YouTube Channel For Amazing Bot https://youtube.com/
+# Ask Doubt on telegram 
 
 async def restart_bots():
     bots = list(mongo_db.bots.find())
