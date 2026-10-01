@@ -18,7 +18,7 @@ logging.getLogger("pyrogram").setLevel(logging.ERROR)
 from pyrogram import Client, __version__
 from pyrogram.types import BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeChat
 from pyrogram.raw.all import layer
-from config import LOG_CHANNEL, ON_HEROKU, CLONE_MODE, PORT
+from config import LOG_CHANNEL, ON_HEROKU, CLONE_MODE, PORT, ADMINS
 from typing import Union, Optional, AsyncGenerator
 from pyrogram import types
 from Script import script 
